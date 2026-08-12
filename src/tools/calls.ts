@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   fetchCalls,
   fetchCall,
+  fetchCallsAi,
   formatDuration,
   parseIvrPath,
   CallRecord,
@@ -91,7 +92,7 @@ export function registerCallsTools(server: McpServer): void {
         .describe("Include AI transcript and summary if available"),
     },
     async ({ call_id, include_transcript }) => {
-      const res = await fetchCall(call_id, true, include_transcript);
+      const res = await fetchCall(call_id, true);
       const call = res.data;
 
       const summary = summarizeCall(call);
@@ -107,7 +108,7 @@ export function registerCallsTools(server: McpServer): void {
       };
 
       if (include_transcript) {
-        result["ai_data"] = call.ai_data ?? "No AI data available";
+        result["ai_data"] = await fetchCallsAi(call_id);
       }
 
       return {
@@ -155,8 +156,7 @@ export function registerCallsTools(server: McpServer): void {
       call_id: z.number().describe("The JustCall call ID"),
     },
     async ({ call_id }) => {
-      const res = await fetchCall(call_id, false, true);
-      const ai = res.data?.ai_data;
+      const ai = await fetchCallsAi(call_id);
 
       return {
         content: [
@@ -165,9 +165,8 @@ export function registerCallsTools(server: McpServer): void {
             text: JSON.stringify(
               {
                 call_id,
-                agent: res.data?.agent_name,
-                date: res.data?.call_date,
-                ai_data: ai ?? "No transcript available — AI data may not be enabled for this call",
+                outcome: ai.kind,
+                ai_data: ai,
               },
               null,
               2
