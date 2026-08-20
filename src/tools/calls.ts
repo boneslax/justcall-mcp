@@ -82,7 +82,11 @@ export function registerCallsTools(server: McpServer): void {
           "Sort key. Default 'datetime' — the API's own default ('id') sorts by ingestion order, which is NOT reliably chronological (a call can be indexed out of start-time order)."
         ),
       order: z.enum(["asc", "desc"]).optional().default("desc").describe("Sort direction"),
-      page: z.number().optional().default(1).describe("Page number"),
+      page: z
+        .number()
+        .optional()
+        .default(0)
+        .describe("Page number (API is 0-indexed — page 0 is the first/newest page)."),
       per_page: z
         .number()
         .optional()
