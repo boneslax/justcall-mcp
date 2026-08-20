@@ -66,6 +66,49 @@ export async function fetchCalls(params: Record<string, string | number>): Promi
   return apiGet("/calls", params) as Promise<CallsListResponse>;
 }
 
+export interface CallAiRecord {
+  id: number;
+  call_sid: string;
+  call_summary?: string;
+  customer_sentiment?: string;
+  action_items?: unknown;
+  call_transcription?: Array<{
+    speaker_name: string;
+    sentence: string;
+    timestamp: { starttime: number; endtime: number };
+  }>;
+  [key: string]: unknown;
+}
+
+export interface CallsAiListResponse {
+  status: string;
+  count: number;
+  data: CallAiRecord[];
+}
+
+// AI transcript/summary lives on a SEPARATE endpoint from /calls — /calls/{id}?fetch_ai_data=1
+// returns an empty justcall_ai object even when a transcript exists. There is no call_id filter
+// on this endpoint, so callers must fetch a window (agent_id + date range works well) and match
+// the target call by `id` client-side.
+export async function fetchCallsAi(params: Record<string, string | number>): Promise<CallsAiListResponse> {
+  return apiGet("/calls_ai", params) as Promise<CallsAiListResponse>;
+}
+
+// Find the AI transcript/summary for one call by looking it up, then searching the calls_ai
+// window that contains it (same agent, same account-local date).
+export async function fetchCallAiFor(call: CallRecord): Promise<CallAiRecord | undefined> {
+  const userDate = (call["call_user_date"] as string | undefined) ?? call.call_date;
+  const res = await fetchCallsAi({
+    agent_id: call.agent_id,
+    from_datetime: userDate,
+    to_datetime: `${userDate} 23:59:59`,
+    fetch_transcription: "true",
+    fetch_summary: "true",
+    per_page: 20,
+  });
+  return res.data?.find((c) => c.id === call.id);
+}
+
 export async function fetchCall(
   id: number | string,
   fetchQueueData = false,
